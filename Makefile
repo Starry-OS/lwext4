@@ -13,6 +13,11 @@ VERSION_PATCH = 0
 
 VERSION = $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)-$(GIT_SHORT_HASH)
 
+# Directory for build output. Defaults to the source directory.
+# Pass OUT_DIR=<path> to place build artifacts outside the source tree.
+OUT_DIR ?= .
+SRCDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
 COMMON_DEFINITIONS =                                      \
 	-DCMAKE_BUILD_TYPE=$(BUILD_TYPE)                      \
 	-DVERSION_MAJOR=$(VERSION_MAJOR)                      \
@@ -25,20 +30,20 @@ COMMON_DEFINITIONS =                                      \
 	-DCMAKE_INSTALL_PREFIX=./install \
 
 define generate_common
-	rm -R -f build_$(1)
-	mkdir build_$(1)
-	cd build_$(1) && cmake -G"Unix Makefiles"           \
+	rm -R -f $(OUT_DIR)/build_$(1)
+	mkdir -p $(OUT_DIR)/build_$(1)
+	cd $(OUT_DIR)/build_$(1) && cmake -G"Unix Makefiles" \
 	$(COMMON_DEFINITIONS)                               \
 	$(2)                                                \
-	-DCMAKE_TOOLCHAIN_FILE=../toolchain/$(1).cmake ..
+	-DCMAKE_TOOLCHAIN_FILE=$(SRCDIR)/toolchain/$(1).cmake $(SRCDIR)
 endef
 
 ARCH ?= x86_64
 #Output: src/liblwext4.a
 musl-generic:
 	$(call generate_common,$@)
-	cd build_$@ && make lwext4
-	cp build_$@/src/liblwext4.a ./liblwext4-$(ARCH).a
+	cd $(OUT_DIR)/build_$@ && make lwext4
+	cp $(OUT_DIR)/build_$@/src/liblwext4.a $(OUT_DIR)/liblwext4-$(ARCH).a
 
 generic:
 	$(call generate_common,$@)
@@ -74,15 +79,15 @@ mingw:
 	$(call generate_common,$@,-DWIN32=1)
 
 lib_only:
-	rm -R -f build_lib_only
-	mkdir build_lib_only
-	cd build_lib_only && cmake $(COMMON_DEFINITIONS) -DLIB_ONLY=TRUE ..
+	rm -R -f $(OUT_DIR)/build_lib_only
+	mkdir -p $(OUT_DIR)/build_lib_only
+	cd $(OUT_DIR)/build_lib_only && cmake $(COMMON_DEFINITIONS) -DLIB_ONLY=TRUE $(SRCDIR)
 
 all:
 	generic
 
 clean:
-	rm -R -f build_*
-	rm -R -f ext_images
+	rm -R -f $(OUT_DIR)/build_*
+	rm -R -f $(OUT_DIR)/ext_images
 
 include fs_test.mk
